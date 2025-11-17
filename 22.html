@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>🔥 GitHub AI Chat</title>
+<style>
+  body { font-family: 'Segoe UI', background: #1e1e2f; color: #eee; display: flex; justify-content: center; align-items: center; height: 100vh; margin:0; }
+  #chat-container { width: 600px; height: 700px; display: flex; flex-direction: column; background: #2a2a3e; border-radius: 15px; overflow: hidden; box-shadow: 0 5px 30px rgba(0,0,0,0.7); }
+  #chat-box { flex: 1; padding: 20px; overflow-y: auto; scroll-behavior: smooth; }
+  .message { max-width: 80%; margin: 10px 0; padding: 12px 18px; border-radius: 20px; word-wrap: break-word; }
+  .user { background: #4f9eff; align-self: flex-end; }
+  .ai { background: #00d4aa; align-self: flex-start; position: relative; }
+  #input-container { display: flex; padding: 10px; background: #1e1e2f; }
+  input { flex: 1; padding: 12px; border-radius: 25px; border: none; outline: none; font-size: 16px; }
+  button { margin-left: 10px; padding: 12px 20px; border: none; border-radius: 25px; background: #4f9eff; color: white; font-weight: bold; cursor: pointer; transition: 0.2s; }
+  button:hover { background: #2c7ce2; }
+</style>
+</head>
+<body>
+
+<div id="chat-container">
+  <div id="chat-box"></div>
+  <div id="input-container">
+    <input type="text" id="user-input" placeholder="Type your message..." onkeydown="if(event.key==='Enter') sendMessage()">
+    <button onclick="sendMessage()">Send</button>
+  </div>
+</div>
+
+<script>
+const API_URL = "https://api-inference.huggingface.co/models/rosbob/Gpt-h";
+const API_TOKEN = "940e9e45fbea45dca39b64721c1675e6"; // Your token
+
+let chatHistory = [];
+const chatBox = document.getElementById('chat-box');
+
+function addMessage(sender, text){
+    const msg = document.createElement('div');
+    msg.className = 'message ' + sender;
+    msg.textContent = text;
+    chatBox.appendChild(msg);
+    chatBox.scrollTop = chatBox.scrollHeight;
+    return msg;
+}
+
+function sleep(ms){ return new Promise(resolve => setTimeout(resolve, ms)); }
+
+async function sendMessage(){
+    const input = document.getElementById('user-input');
+    const message = input.value.trim();
+    if(!message) return;
+
+    addMessage('user', message);
+    input.value = '';
+
+    const typing = addMessage('ai', 'Typing...');
+    chatHistory.push(message);
+
+    try{
+        const res = await fetch(API_URL, {
+            method: 'POST',
+            headers: {
+                "Authorization": "Bearer " + API_TOKEN,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ inputs: chatHistory.join("\n"), options: { wait_for_model: true } })
+        });
+        const data = await res.json();
+        chatBox.removeChild(typing);
+
+        let reply = data[0]?.generated_text || "I could not respond.";
+
+        // Typing effect
+        let msgElem = addMessage('ai','');
+        for(let char of reply){
+            msgElem.textContent += char;
+            await sleep(20);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        chatHistory.push(reply);
+
+    }catch(err){
+        chatBox.removeChild(typing);
+        addMessage('ai', "Error: " + err.message);
+    }
+}
+</script>
+
+</body>
+</html>
